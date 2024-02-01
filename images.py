@@ -6,8 +6,12 @@ def show_grid(images):
     axes = axes.flatten()
 
     for i in range(25):
+        im = np.swapaxes(images[i, :, :, :], 0, 2)
+        im = np.maximum(im, np.zeros(im.shape))
+        im = np.minimum(im, np.ones(im.shape))
+
         ax = axes[i]
-        ax.imshow(np.swapaxes(images[i, :, :, :], 0, 2))
+        ax.imshow(im)
         ax.axis('off')
 
     plt.tight_layout()
