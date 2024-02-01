@@ -52,7 +52,7 @@ class Model(nn.Module):
         self.conv9_1 = nn.Conv2d(sizes[0] + 32, sizes[0], ks, padding='same')
         self.conv9_2 = nn.Conv2d(sizes[0], sizes[0], ks, padding='same')
 
-        # ToDo 4: Output Part of Network.
+        # Output
         self.conv10 = nn.Conv2d(sizes[0], 3, ks, padding='same')
 
         # Other layers
