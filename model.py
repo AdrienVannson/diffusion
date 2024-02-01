@@ -34,22 +34,22 @@ class Model(nn.Module):
         self.linear2 = nn.Linear(64*16 + 32, 128*16)
 
         # Block 4
-        self.conv6_1 = nn.Conv2d(2*sizes[3] + 32, sizes[3], ks, padding='same')
+        self.conv6_1 = nn.Conv2d(sizes[3] + 32, sizes[3], ks, padding='same')
         self.conv6_2 = nn.Conv2d(sizes[3], sizes[3], ks, padding='same')
         
         # Block 3
         self.conv7_up = nn.ConvTranspose2d(sizes[3], sizes[2], kernel_size=2, stride=2)
-        self.conv7_1 = nn.Conv2d(2*sizes[2] + 32, sizes[2], ks, padding='same')
+        self.conv7_1 = nn.Conv2d(sizes[2] + 32, sizes[2], ks, padding='same')
         self.conv7_2 = nn.Conv2d(sizes[2], sizes[2], ks, padding='same')
         
         # Block 2
         self.conv8_up = nn.ConvTranspose2d(sizes[2], sizes[1], kernel_size=2, stride=2)
-        self.conv8_1 = nn.Conv2d(2*sizes[1] + 32, sizes[1], ks, padding='same')
+        self.conv8_1 = nn.Conv2d(sizes[1] + 32, sizes[1], ks, padding='same')
         self.conv8_2 = nn.Conv2d(sizes[1], sizes[1], ks, padding='same')
         
         # Block 1
         self.conv9_up = nn.ConvTranspose2d(sizes[1], sizes[0], kernel_size=2, stride=2)
-        self.conv9_1 = nn.Conv2d(2*sizes[0] + 32, sizes[0], ks, padding='same')
+        self.conv9_1 = nn.Conv2d(sizes[0] + 32, sizes[0], ks, padding='same')
         self.conv9_2 = nn.Conv2d(sizes[0], sizes[0], ks, padding='same')
 
         # ToDo 4: Output Part of Network.
@@ -103,25 +103,25 @@ class Model(nn.Module):
         x_flat = self.relu(self.linear2(x_flat))
 
         # Block 4
-        x4 = torch.cat((x_flat.view(shape), x4), 1)
+        x4 = x_flat.view(shape) + x4
         x4 = torch.cat((x4, ts.unsqueeze(2).unsqueeze(3).repeat(1, 1, 4, 4)), dim=1)
         x4 = self.relu(self.conv6_1(x4))
         x4 = self.relu(self.conv6_2(x4))
 
         # Block 3
-        x3 = torch.cat((self.conv7_up(x4), x3), 1)
+        x3 = self.conv7_up(x4) + x3
         x3 = torch.cat((x3, ts.unsqueeze(2).unsqueeze(3).repeat(1, 1, 8, 8)), dim=1)
         x3 = self.relu(self.conv7_1(x3))
         x3 = self.relu(self.conv7_2(x3))
 
         # Block 2
-        x2 = torch.cat((self.conv8_up(x3), x2), 1)
+        x2 = self.conv8_up(x3) + x2
         x2 = torch.cat((x2, ts.unsqueeze(2).unsqueeze(3).repeat(1, 1, 16, 16)), dim=1)
         x2 = self.relu(self.conv8_1(x2))
         x2 = self.relu(self.conv8_2(x2))
 
         # Block 1
-        x1 = torch.cat((self.conv9_up(x2), x1), 1)
+        x1 = self.conv9_up(x2) + x1
         x1 = torch.cat((x1, ts.unsqueeze(2).unsqueeze(3).repeat(1, 1, 32, 32)), dim=1)
         x1 = self.relu(self.conv9_1(x1))
         x1 = self.relu(self.conv9_2(x1))
