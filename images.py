@@ -2,8 +2,8 @@ from matplotlib import pyplot as plt
 import numpy as np
 
 def show_grid(images):
-    nb_lines = len(images) // 5 + (len(images) % 5 > 0)
-    nb_cols = min(5, len(images))
+    nb_lines = len(images) // 10 + (len(images) % 10 > 0)
+    nb_cols = min(10, len(images))
 
     fig, axes = plt.subplots(nb_lines, nb_cols, figsize=(1.5*nb_cols, 1.5*nb_lines))
     axes = axes.flatten()
