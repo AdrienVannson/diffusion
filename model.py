@@ -87,22 +87,22 @@ class Model(nn.Module):
         x1 = self.relu(self.bn1(self.conv1_2(x1)))
         
         # Block 2
-        x2 = self.maxpooling(x1)
-        x2 = torch.cat((x2, ts.unsqueeze(2).unsqueeze(3).repeat(1, 1, 16, 16)), dim=1)
+        x2_in = self.maxpooling(x1)
+        x2 = torch.cat((x2_in, ts.unsqueeze(2).unsqueeze(3).repeat(1, 1, 16, 16)), dim=1)
         x2 = self.relu(self.conv2_1(x2))
-        x2 = self.relu(self.bn2(self.conv2_2(x2)))
+        x2 = self.relu(self.bn2(self.conv2_2(x2) + x2_in))
         
         # Block 3
-        x3 = self.maxpooling(x2)
-        x3 = torch.cat((x3, ts.unsqueeze(2).unsqueeze(3).repeat(1, 1, 8, 8)), dim=1)
+        x3_in = self.maxpooling(x2)
+        x3 = torch.cat((x3_in, ts.unsqueeze(2).unsqueeze(3).repeat(1, 1, 8, 8)), dim=1)
         x3 = self.relu(self.conv3_1(x3))
-        x3 = self.relu(self.bn3(self.conv3_2(x3)))
+        x3 = self.relu(self.bn3(self.conv3_2(x3) + x3_in))
         
         # Block 4
-        x4 = self.maxpooling(x3)
-        x4 = torch.cat((x4, ts.unsqueeze(2).unsqueeze(3).repeat(1, 1, 4, 4)), dim=1)
+        x4_in = self.maxpooling(x3)
+        x4 = torch.cat((x4_in, ts.unsqueeze(2).unsqueeze(3).repeat(1, 1, 4, 4)), dim=1)
         x4 = self.relu(self.conv4_1(x4))
-        x4 = self.relu(self.bn4(self.conv4_2(x4)))
+        x4 = self.relu(self.bn4(self.conv4_2(x4) + x4_in))
 
         # Middle block
         shape = x4.shape
@@ -113,28 +113,28 @@ class Model(nn.Module):
         x_flat = self.relu(self.bn_middle2(self.linear2(x_flat)))
 
         # Block 4
-        x4 = x_flat.view(shape) + x4
+        x4_in = x_flat.view(shape) + x4
         x4 = torch.cat((x4, ts.unsqueeze(2).unsqueeze(3).repeat(1, 1, 4, 4)), dim=1)
         x4 = self.relu(self.conv6_1(x4))
-        x4 = self.relu(self.bn6(self.conv6_2(x4)))
+        x4 = self.relu(self.bn6(self.conv6_2(x4) + x4_in))
 
         # Block 3
-        x3 = self.conv7_up(x4) + x3
+        x3_in = self.conv7_up(x4) + x3
         x3 = torch.cat((x3, ts.unsqueeze(2).unsqueeze(3).repeat(1, 1, 8, 8)), dim=1)
         x3 = self.relu(self.conv7_1(x3))
-        x3 = self.relu(self.bn7(self.conv7_2(x3)))
+        x3 = self.relu(self.bn7(self.conv7_2(x3) + x3_in))
 
         # Block 2
-        x2 = self.conv8_up(x3) + x2
+        x2_in = self.conv8_up(x3) + x2
         x2 = torch.cat((x2, ts.unsqueeze(2).unsqueeze(3).repeat(1, 1, 16, 16)), dim=1)
         x2 = self.relu(self.conv8_1(x2))
-        x2 = self.relu(self.bn8(self.conv8_2(x2)))
+        x2 = self.relu(self.bn8(self.conv8_2(x2) + x2_in))
 
         # Block 1
-        x1 = self.conv9_up(x2) + x1
+        x1_in = self.conv9_up(x2) + x1
         x1 = torch.cat((x1, ts.unsqueeze(2).unsqueeze(3).repeat(1, 1, 32, 32)), dim=1)
         x1 = self.relu(self.conv9_1(x1))
-        x1 = self.relu(self.bn9(self.conv9_2(x1)))
+        x1 = self.relu(self.bn9(self.conv9_2(x1) + x1_in))
 
         output = self.conv10(x1)
 
