@@ -1,6 +1,29 @@
 import torch
 from torch import nn
 
+class PositionalEmbedding(nn.Module):
+
+    def __init__(self, max_time, nb_features):
+        super().__init__()
+
+        nb_sins = nb_features // 2
+        omega = 1 / torch.pow(10_000, torch.arange(nb_sins) / nb_sins).reshape((1, nb_sins))
+        positions = torch.arange(0, max_time, dtype=torch.float).reshape((max_time, 1))
+
+        vals = positions @ omega
+
+        # Shape: (token position, embedding dimension)
+        self.positional_embedding = torch.cat((torch.sin(vals), torch.cos(vals)), dim=1)
+
+        assert(self.positional_embedding.shape == (max_time, nb_features))
+
+    def forward(self):
+        return self.positional_embedding
+
+    def embedding(self):
+        return self.positional_embedding
+
+
 class Model(nn.Module):
     def __init__(self):
         super().__init__()
