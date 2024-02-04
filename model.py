@@ -16,41 +16,51 @@ class Model(nn.Module):
         # Block 1
         self.conv1_1 = nn.Conv2d(3 + 32, sizes[0], ks, padding='same')
         self.conv1_2 = nn.Conv2d(sizes[0], sizes[0], ks, padding='same')
+        self.bn1 = nn.BatchNorm2d(sizes[0])
 
         # Block 2
         self.conv2_1 = nn.Conv2d(sizes[0] + 32, sizes[1], ks, padding='same')
         self.conv2_2 = nn.Conv2d(sizes[1], sizes[1], ks, padding='same')
+        self.bn2 = nn.BatchNorm2d(sizes[1])
 
         # Block 3
         self.conv3_1 = nn.Conv2d(sizes[1] + 32, sizes[2], ks, padding='same')
         self.conv3_2 = nn.Conv2d(sizes[2], sizes[2], ks, padding='same')
+        self.bn3 = nn.BatchNorm2d(sizes[2])
 
         # Block 4
         self.conv4_1 = nn.Conv2d(sizes[2] + 32, sizes[3], ks, padding='same')
         self.conv4_2 = nn.Conv2d(sizes[3], sizes[3], ks, padding='same')
+        self.bn4 = nn.BatchNorm2d(sizes[3])
         
         # Middle block
         self.linear1 = nn.Linear(128*16 + 32, 64*16)
+        self.bn_middle1 = nn.BatchNorm1d(64*16)
         self.linear2 = nn.Linear(64*16 + 32, 128*16)
+        self.bn_middle2 = nn.BatchNorm1d(128*16)
 
         # Block 4
         self.conv6_1 = nn.Conv2d(sizes[3] + 32, sizes[3], ks, padding='same')
         self.conv6_2 = nn.Conv2d(sizes[3], sizes[3], ks, padding='same')
+        self.bn6 = nn.BatchNorm2d(sizes[3])
         
         # Block 3
         self.conv7_up = nn.ConvTranspose2d(sizes[3], sizes[2], kernel_size=2, stride=2)
         self.conv7_1 = nn.Conv2d(sizes[2] + 32, sizes[2], ks, padding='same')
         self.conv7_2 = nn.Conv2d(sizes[2], sizes[2], ks, padding='same')
+        self.bn7 = nn.BatchNorm2d(sizes[3])
         
         # Block 2
         self.conv8_up = nn.ConvTranspose2d(sizes[2], sizes[1], kernel_size=2, stride=2)
         self.conv8_1 = nn.Conv2d(sizes[1] + 32, sizes[1], ks, padding='same')
         self.conv8_2 = nn.Conv2d(sizes[1], sizes[1], ks, padding='same')
+        self.bn8 = nn.BatchNorm2d(sizes[1])
         
         # Block 1
         self.conv9_up = nn.ConvTranspose2d(sizes[1], sizes[0], kernel_size=2, stride=2)
         self.conv9_1 = nn.Conv2d(sizes[0] + 32, sizes[0], ks, padding='same')
         self.conv9_2 = nn.Conv2d(sizes[0], sizes[0], ks, padding='same')
+        self.bn9 = nn.BatchNorm2d(sizes[0])
 
         # Output
         self.conv10 = nn.Conv2d(sizes[0], 3, ks, padding='same')
@@ -74,57 +84,57 @@ class Model(nn.Module):
         # Block 1
         x = torch.cat((x, ts.unsqueeze(2).unsqueeze(3).repeat(1, 1, 32, 32)), dim=1)
         x1 = self.relu(self.conv1_1(x))
-        x1 = self.relu(self.conv1_2(x1))
+        x1 = self.relu(self.bn1(self.conv1_2(x1)))
         
         # Block 2
         x2 = self.maxpooling(x1)
         x2 = torch.cat((x2, ts.unsqueeze(2).unsqueeze(3).repeat(1, 1, 16, 16)), dim=1)
         x2 = self.relu(self.conv2_1(x2))
-        x2 = self.relu(self.conv2_2(x2))
+        x2 = self.relu(self.bn2(self.conv2_2(x2)))
         
         # Block 3
         x3 = self.maxpooling(x2)
         x3 = torch.cat((x3, ts.unsqueeze(2).unsqueeze(3).repeat(1, 1, 8, 8)), dim=1)
         x3 = self.relu(self.conv3_1(x3))
-        x3 = self.relu(self.conv3_2(x3))
+        x3 = self.relu(self.bn3(self.conv3_2(x3)))
         
         # Block 4
         x4 = self.maxpooling(x3)
         x4 = torch.cat((x4, ts.unsqueeze(2).unsqueeze(3).repeat(1, 1, 4, 4)), dim=1)
         x4 = self.relu(self.conv4_1(x4))
-        x4 = self.relu(self.conv4_2(x4))
+        x4 = self.relu(self.bn4(self.conv4_2(x4)))
 
         # Middle block
         shape = x4.shape
         x_flat = x4.flatten(1, 3)
         x_flat = torch.cat((x_flat, ts), dim=1)
-        x_flat = self.relu(self.linear1(x_flat))
+        x_flat = self.relu(self.bn_middle1(self.linear1(x_flat)))
         x_flat = torch.cat((x_flat, ts), dim=1)
-        x_flat = self.relu(self.linear2(x_flat))
+        x_flat = self.relu(self.bn_middle2(self.linear2(x_flat)))
 
         # Block 4
         x4 = x_flat.view(shape) + x4
         x4 = torch.cat((x4, ts.unsqueeze(2).unsqueeze(3).repeat(1, 1, 4, 4)), dim=1)
         x4 = self.relu(self.conv6_1(x4))
-        x4 = self.relu(self.conv6_2(x4))
+        x4 = self.relu(self.bn6(self.conv6_2(x4)))
 
         # Block 3
         x3 = self.conv7_up(x4) + x3
         x3 = torch.cat((x3, ts.unsqueeze(2).unsqueeze(3).repeat(1, 1, 8, 8)), dim=1)
         x3 = self.relu(self.conv7_1(x3))
-        x3 = self.relu(self.conv7_2(x3))
+        x3 = self.relu(self.bn7(self.conv7_2(x3)))
 
         # Block 2
         x2 = self.conv8_up(x3) + x2
         x2 = torch.cat((x2, ts.unsqueeze(2).unsqueeze(3).repeat(1, 1, 16, 16)), dim=1)
         x2 = self.relu(self.conv8_1(x2))
-        x2 = self.relu(self.conv8_2(x2))
+        x2 = self.relu(self.bn8(self.conv8_2(x2)))
 
         # Block 1
         x1 = self.conv9_up(x2) + x1
         x1 = torch.cat((x1, ts.unsqueeze(2).unsqueeze(3).repeat(1, 1, 32, 32)), dim=1)
         x1 = self.relu(self.conv9_1(x1))
-        x1 = self.relu(self.conv9_2(x1))
+        x1 = self.relu(self.bn9(self.conv9_2(x1)))
 
         output = self.conv10(x1)
 
