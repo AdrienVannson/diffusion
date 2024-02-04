@@ -29,7 +29,7 @@ class Model(nn.Module):
         super().__init__()
 
         # Process the time
-        self.time1 = nn.Linear(1, 64)
+        self.time1 = nn.Linear(64, 64)
         self.time2 = nn.Linear(64, 32)
 
         ks = 3 # Kernel size
@@ -99,9 +99,9 @@ class Model(nn.Module):
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)"""
 
-    def forward(self, x, t):
+    def forward(self, x, ts):
         # Process the time
-        ts = self.relu(self.time1(t.view(len(t), 1)))
+        ts = self.relu(self.time1(ts))
         ts = self.relu(self.time2(ts))
 
         # Block 1
