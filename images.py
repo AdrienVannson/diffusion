@@ -1,7 +1,8 @@
 from matplotlib import pyplot as plt
 import numpy as np
 
-def show_grid(images):
+def show_grid(images, output_file = None):
+    plt.figure()
     nb_lines = len(images) // 10 + (len(images) % 10 > 0)
     nb_cols = min(10, len(images))
 
@@ -21,4 +22,9 @@ def show_grid(images):
         axes[i].axis('off')
 
     plt.tight_layout()
+
+    if output_file is not None:
+        print(output_file)
+        plt.savefig(output_file)
+
     plt.show()

@@ -25,8 +25,10 @@ class PositionalEmbedding(nn.Module):
 
 
 class Model(nn.Module):
-    def __init__(self):
+    def __init__(self, input_size):
         super().__init__()
+
+        self.input_size = input_size
 
         # Process the time
         self.time1 = nn.Linear(64, 64)
@@ -57,10 +59,11 @@ class Model(nn.Module):
         self.bn4 = nn.BatchNorm2d(sizes[3])
         
         # Middle block
-        self.linear1 = nn.Linear(128*16 + 32, 64*16)
-        self.bn_middle1 = nn.BatchNorm1d(64*16)
-        self.linear2 = nn.Linear(64*16 + 32, 128*16)
-        self.bn_middle2 = nn.BatchNorm1d(128*16)
+        s = (input_size // 8) * (input_size // 8)
+        self.linear1 = nn.Linear(128*s + 32, 64*s)
+        self.bn_middle1 = nn.BatchNorm1d(64*s)
+        self.linear2 = nn.Linear(64*s + 32, 128*s)
+        self.bn_middle2 = nn.BatchNorm1d(128*s)
 
         # Block 4
         self.conv6_1 = nn.Conv2d(sizes[3] + 32, sizes[3], ks, padding='same')
