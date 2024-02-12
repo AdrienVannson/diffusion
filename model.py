@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 
+
 class PositionalEmbedding(nn.Module):
 
     def __init__(self, max_time, nb_features):
@@ -20,8 +21,51 @@ class PositionalEmbedding(nn.Module):
     def forward(self):
         return self.positional_embedding
 
-    def embedding(self):
-        return self.positional_embedding
+
+class EncodingBlock(nn.Module):
+    def __init__(self, nb_features_in, nb_features_time, nb_features_out):
+        super().__init__()
+
+        self.conv1 = nn.Conv2d(nb_features_in + nb_features_time, nb_features_out, 3, padding='same')
+        self.conv2 = nn.Conv2d(nb_features_out, nb_features_out, 3, padding='same')
+        self.batchnorm = nn.BatchNorm2d(nb_features_out)
+        self.maxpooling = nn.MaxPool2d(2)
+        self.ReLU = nn.ReLU()
+
+    def forward(self, x_in, t):
+        t = t.unsqueeze(2).unsqueeze(3).repeat(1, 1, x_in.shape[2], x_in.shape[3])
+        x = self.conv1(torch.cat((x_in, t), dim=1))
+        x = self.ReLU(x)
+        x = self.conv2(x)
+        if x.shape[1] == x_in.shape[1]:
+            x = x + x_in # Add the residual connection
+        x = self.batchnorm(x) # TODO before or after ReLU?
+        x = self.ReLU(x)
+
+        return x, self.maxpooling(x)
+
+
+class DecodingBlock(nn.Module):
+    def __init__(self, nb_features_in, nb_features_time, nb_features_out):
+        super().__init__()
+
+        self.upsampling = nn.ConvTranspose2d(nb_features_in, nb_features_out, kernel_size=2, stride=2)
+        self.conv1 = nn.Conv2d(nb_features_out + nb_features_time, nb_features_out, 3, padding='same')
+        self.conv2 = nn.Conv2d(nb_features_out, nb_features_out, 3, padding='same')
+        self.batchnorm = nn.BatchNorm2d(nb_features_out)
+        self.ReLU = nn.ReLU()
+
+    def forward(self, x, x_skip, t):
+        x = self.upsampling(x)
+        x_in = x + x_skip
+        t = t.unsqueeze(2).unsqueeze(3).repeat(1, 1, x_in.shape[2], x_in.shape[3])
+
+        x = self.conv1(torch.cat((x_in, t), dim=1))
+        x = self.ReLU(x)
+        x = self.conv2(x) + x_in # Add the residual connection
+        x = self.batchnorm(x) # TODO before or after ReLU?
+        x = self.ReLU(x)
+        return x
 
 
 class Model(nn.Module):
@@ -32,136 +76,70 @@ class Model(nn.Module):
 
         # Process the time
         self.time1 = nn.Linear(64, 64)
-        self.time2 = nn.Linear(64, 32)
+        self.time2 = nn.Linear(64, 64)
 
-        ks = 3 # Kernel size
+        encoder_sizes = [3, 128, 128, 128, 128]
+        decoder_sizes = [128, 128, 128, 128, 128]
 
-        sizes = [128, 128, 128, 128]
+        # Encoder
+        encoder_blocks = []
 
-        # Block 1
-        self.conv1_1 = nn.Conv2d(3 + 32, sizes[0], ks, padding='same')
-        self.conv1_2 = nn.Conv2d(sizes[0], sizes[0], ks, padding='same')
-        self.bn1 = nn.BatchNorm2d(sizes[0])
+        for i in range(len(encoder_sizes) - 1):
+            s1 = encoder_sizes[i]
+            s2 = encoder_sizes[i + 1]
 
-        # Block 2
-        self.conv2_1 = nn.Conv2d(sizes[0] + 32, sizes[1], ks, padding='same')
-        self.conv2_2 = nn.Conv2d(sizes[1], sizes[1], ks, padding='same')
-        self.bn2 = nn.BatchNorm2d(sizes[1])
+            encoder_blocks.append(EncodingBlock(s1, 64, s2))
 
-        # Block 3
-        self.conv3_1 = nn.Conv2d(sizes[1] + 32, sizes[2], ks, padding='same')
-        self.conv3_2 = nn.Conv2d(sizes[2], sizes[2], ks, padding='same')
-        self.bn3 = nn.BatchNorm2d(sizes[2])
+        self.encoder_blocks = nn.ModuleList(encoder_blocks)
 
-        # Block 4
-        self.conv4_1 = nn.Conv2d(sizes[2] + 32, sizes[3], ks, padding='same')
-        self.conv4_2 = nn.Conv2d(sizes[3], sizes[3], ks, padding='same')
-        self.bn4 = nn.BatchNorm2d(sizes[3])
-        
         # Middle block
-        s = (input_size // 8) * (input_size // 8)
+        """s = (input_size // 8) * (input_size // 8)
         self.linear1 = nn.Linear(128*s + 32, 64*s)
         self.bn_middle1 = nn.BatchNorm1d(64*s)
         self.linear2 = nn.Linear(64*s + 32, 128*s)
-        self.bn_middle2 = nn.BatchNorm1d(128*s)
+        self.bn_middle2 = nn.BatchNorm1d(128*s)"""
 
-        # Block 4
-        self.conv6_1 = nn.Conv2d(sizes[3] + 32, sizes[3], ks, padding='same')
-        self.conv6_2 = nn.Conv2d(sizes[3], sizes[3], ks, padding='same')
-        self.bn6 = nn.BatchNorm2d(sizes[3])
-        
-        # Block 3
-        self.conv7_up = nn.ConvTranspose2d(sizes[3], sizes[2], kernel_size=2, stride=2)
-        self.conv7_1 = nn.Conv2d(sizes[2] + 32, sizes[2], ks, padding='same')
-        self.conv7_2 = nn.Conv2d(sizes[2], sizes[2], ks, padding='same')
-        self.bn7 = nn.BatchNorm2d(sizes[3])
-        
-        # Block 2
-        self.conv8_up = nn.ConvTranspose2d(sizes[2], sizes[1], kernel_size=2, stride=2)
-        self.conv8_1 = nn.Conv2d(sizes[1] + 32, sizes[1], ks, padding='same')
-        self.conv8_2 = nn.Conv2d(sizes[1], sizes[1], ks, padding='same')
-        self.bn8 = nn.BatchNorm2d(sizes[1])
-        
-        # Block 1
-        self.conv9_up = nn.ConvTranspose2d(sizes[1], sizes[0], kernel_size=2, stride=2)
-        self.conv9_1 = nn.Conv2d(sizes[0] + 32, sizes[0], ks, padding='same')
-        self.conv9_2 = nn.Conv2d(sizes[0], sizes[0], ks, padding='same')
-        self.bn9 = nn.BatchNorm2d(sizes[0])
+        # Decoder
+        decoder_blocks = []
+
+        for i in range(len(decoder_sizes) - 1):
+            s1 = decoder_sizes[i]
+            s2 = decoder_sizes[i + 1]
+
+            decoder_blocks.append(DecodingBlock(s1, 64, s2))
+
+        self.decoder_blocks = nn.ModuleList(decoder_blocks)
 
         # Output
-        self.conv10 = nn.Conv2d(sizes[0], 3, ks, padding='same')
+        self.final_conv = nn.Conv2d(decoder_sizes[-1], 3, 3, padding='same')
 
         # Other layers
-        self.maxpooling = nn.MaxPool2d(2)
         self.relu = nn.ReLU()
 
-        # Weights initialization
-        """for m in self.modules():
-            if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
-                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
-                if m.bias is not None:
-                    nn.init.constant_(m.bias, 0)"""
-
-    def forward(self, x, ts):
+    def forward(self, x, time_enc):
         # Process the time
-        ts = self.relu(self.time1(ts))
-        ts = self.relu(self.time2(ts))
+        t = self.time1(time_enc)
+        t = self.relu(t)
+        t = self.time2(t) + time_enc # Add a residual connection
+        t = self.relu(t)
 
-        # Block 1
-        x = torch.cat((x, ts.unsqueeze(2).unsqueeze(3).repeat(1, 1, 32, 32)), dim=1)
-        x1 = self.relu(self.conv1_1(x))
-        x1 = self.relu(self.bn1(self.conv1_2(x1)))
-        
-        # Block 2
-        x2_in = self.maxpooling(x1)
-        x2 = torch.cat((x2_in, ts.unsqueeze(2).unsqueeze(3).repeat(1, 1, 16, 16)), dim=1)
-        x2 = self.relu(self.conv2_1(x2))
-        x2 = self.relu(self.bn2(self.conv2_2(x2) + x2_in))
-        
-        # Block 3
-        x3_in = self.maxpooling(x2)
-        x3 = torch.cat((x3_in, ts.unsqueeze(2).unsqueeze(3).repeat(1, 1, 8, 8)), dim=1)
-        x3 = self.relu(self.conv3_1(x3))
-        x3 = self.relu(self.bn3(self.conv3_2(x3) + x3_in))
-        
-        # Block 4
-        x4_in = self.maxpooling(x3)
-        x4 = torch.cat((x4_in, ts.unsqueeze(2).unsqueeze(3).repeat(1, 1, 4, 4)), dim=1)
-        x4 = self.relu(self.conv4_1(x4))
-        x4 = self.relu(self.bn4(self.conv4_2(x4) + x4_in))
+        # Encoder
+        x_stack = []
+
+        for block in self.encoder_blocks:
+            x_before_pooling, x = block(x, t)
+            x_stack.append(x_before_pooling)
+
+        # Decoder
+        for block in self.decoder_blocks:
+            x = block(x, x_stack.pop(), t)
 
         # Middle block
-        shape = x4.shape
+        """shape = x4.shape
         x_flat = x4.flatten(1, 3)
         x_flat = torch.cat((x_flat, ts), dim=1)
         x_flat = self.relu(self.bn_middle1(self.linear1(x_flat)))
         x_flat = torch.cat((x_flat, ts), dim=1)
-        x_flat = self.relu(self.bn_middle2(self.linear2(x_flat)))
+        x_flat = self.relu(self.bn_middle2(self.linear2(x_flat)))"""
 
-        # Block 4
-        x4_in = x_flat.view(shape) + x4
-        x4 = torch.cat((x4, ts.unsqueeze(2).unsqueeze(3).repeat(1, 1, 4, 4)), dim=1)
-        x4 = self.relu(self.conv6_1(x4))
-        x4 = self.relu(self.bn6(self.conv6_2(x4) + x4_in))
-
-        # Block 3
-        x3_in = self.conv7_up(x4) + x3
-        x3 = torch.cat((x3, ts.unsqueeze(2).unsqueeze(3).repeat(1, 1, 8, 8)), dim=1)
-        x3 = self.relu(self.conv7_1(x3))
-        x3 = self.relu(self.bn7(self.conv7_2(x3) + x3_in))
-
-        # Block 2
-        x2_in = self.conv8_up(x3) + x2
-        x2 = torch.cat((x2, ts.unsqueeze(2).unsqueeze(3).repeat(1, 1, 16, 16)), dim=1)
-        x2 = self.relu(self.conv8_1(x2))
-        x2 = self.relu(self.bn8(self.conv8_2(x2) + x2_in))
-
-        # Block 1
-        x1_in = self.conv9_up(x2) + x1
-        x1 = torch.cat((x1, ts.unsqueeze(2).unsqueeze(3).repeat(1, 1, 32, 32)), dim=1)
-        x1 = self.relu(self.conv9_1(x1))
-        x1 = self.relu(self.bn9(self.conv9_2(x1) + x1_in))
-
-        output = self.conv10(x1)
-
-        return output
+        return self.final_conv(x)
