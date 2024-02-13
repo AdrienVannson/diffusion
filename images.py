@@ -25,7 +25,9 @@ def show_grid(images, nb_cols = None, output_file = None):
     plt.tight_layout()
 
     if output_file is not None:
-        print(output_file)
         plt.savefig(output_file)
 
-    plt.show()
+    if output_file is None:
+        plt.show()
+    else:
+        plt.close()
