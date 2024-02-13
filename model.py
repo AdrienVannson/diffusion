@@ -27,7 +27,7 @@ class EncodingBlock(nn.Module):
         super().__init__()
 
         self.conv1 = nn.Conv2d(nb_features_in + nb_features_time, nb_features_out, 3, padding='same')
-        self.conv2 = nn.Conv2d(nb_features_out, nb_features_out, 3, padding='same')
+        self.conv2 = nn.Conv2d(nb_features_out, nb_features_out, 3, bias=False, padding='same') # No biais if a batch norm follows
         self.batchnorm = nn.BatchNorm2d(nb_features_out)
         self.maxpooling = nn.MaxPool2d(2)
         self.ReLU = nn.ReLU()
@@ -51,7 +51,7 @@ class DecodingBlock(nn.Module):
 
         self.upsampling = nn.ConvTranspose2d(nb_features_in, nb_features_out, kernel_size=2, stride=2)
         self.conv1 = nn.Conv2d(nb_features_out + nb_features_time, nb_features_out, 3, padding='same')
-        self.conv2 = nn.Conv2d(nb_features_out, nb_features_out, 3, padding='same')
+        self.conv2 = nn.Conv2d(nb_features_out, nb_features_out, 3, bias=False, padding='same') # No biais if a batch norm follows
         self.batchnorm = nn.BatchNorm2d(nb_features_out)
         self.ReLU = nn.ReLU()
 
