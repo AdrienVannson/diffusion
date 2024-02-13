@@ -1,10 +1,11 @@
 from matplotlib import pyplot as plt
 import numpy as np
 
-def show_grid(images, output_file = None):
+def show_grid(images, nb_cols = None, output_file = None):
     plt.figure()
-    nb_lines = len(images) // 10 + (len(images) % 10 > 0)
-    nb_cols = min(10, len(images))
+    if nb_cols is None:
+        nb_cols = min(10, len(images))
+    nb_lines = len(images) // nb_cols + (len(images) % nb_cols > 0)
 
     fig, axes = plt.subplots(nb_lines, nb_cols, figsize=(1.5*nb_cols, 1.5*nb_lines))
     axes = axes.flatten()
