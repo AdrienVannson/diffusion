@@ -30,4 +30,4 @@ def show_grid(images, nb_cols = None, output_file = None):
     if output_file is None:
         plt.show()
     else:
-        plt.close()
+        plt.close('all')
